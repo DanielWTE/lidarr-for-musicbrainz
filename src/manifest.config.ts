@@ -11,7 +11,7 @@ export default defineManifest({
     48: 'public/icon48.png',
     128: 'public/icon128.png',
   },
-  permissions: ['storage', 'notifications'],
+  permissions: ['storage', 'notifications', 'contextMenus'],
   host_permissions: ['https://musicbrainz.org/*'],
   optional_host_permissions: ['http://*/*', 'https://*/*'],
   content_scripts: [
