@@ -2,8 +2,6 @@
 
 A Chrome extension (Manifest V3) that adds a one-click **Add to Lidarr** button to artist, release-group, and release pages on [musicbrainz.org](https://musicbrainz.org). It connects to your self-hosted [Lidarr](https://lidarr.audio) instance and uses Lidarr's standard `lidarr:<mbid>` lookup so the metadata always lines up.
 
-> Built by [Daniel Wagner](https://wgst.at/) — feedback and PRs welcome.
-
 ## Features
 
 - 🎤 Add **artists** in one click from `/artist/<mbid>` pages.
