@@ -69,7 +69,7 @@ If this policy changes, the new version will be committed to this file. Material
 Questions, bug reports, or removal requests:
 
 - Author website: <https://wgst.at/>
-- Email: [dw@wglc.at](mailto:dw@wglc.at)
+- Email: [dw@wgst.at](mailto:dw@wgst.at)
 - Issue tracker: <https://github.com/DanielWTE/lidarr-for-musicbrainz/issues>
 
 ## Open source
