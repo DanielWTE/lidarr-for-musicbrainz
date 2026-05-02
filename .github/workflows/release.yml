@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          TAG_VERSION="${TAG_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $TAG_NAME does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+          echo "Tag and package.json version match: $PKG_VERSION"
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Create zip
+        id: zip
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          ZIP_NAME="lidarr-for-musicbrainz-v${PKG_VERSION}.zip"
+          (cd dist && zip -r "../${ZIP_NAME}" .)
+          ls -la "${ZIP_NAME}"
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "pkg_version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.zip.outputs.pkg_version }}
+          files: ${{ steps.zip.outputs.zip_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body: |
+            ### Install
+
+            **Chrome Web Store** — _coming soon_
+
+            **From this release (unpacked):**
+
+            1. Download `${{ steps.zip.outputs.zip_name }}` below.
+            2. Unzip it somewhere stable.
+            3. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, point at the unzipped folder.
+
+            **From source:**
+
+            ```bash
+            git clone https://github.com/DanielWTE/lidarr-for-musicbrainz.git
+            cd lidarr-for-musicbrainz
+            git checkout v${{ steps.zip.outputs.pkg_version }}
+            npm ci && npm run build
+            # Load `dist/` as unpacked in chrome://extensions
+            ```
+
+      - name: Upload zip as workflow artifact (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.zip.outputs.zip_name }}
+          path: ${{ steps.zip.outputs.zip_name }}
+          retention-days: 30
