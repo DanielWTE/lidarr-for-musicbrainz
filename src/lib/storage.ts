@@ -82,6 +82,39 @@ export async function setCache<T>(key: string, value: T): Promise<void> {
 
 export const ProfilesCacheKey = PROFILES_CACHE_KEY;
 
+export type ActivityStatus =
+  | 'adding'
+  | 'added'
+  | 'exists'
+  | 'error'
+  | 'not-in-metadata';
+
+export type Activity = {
+  status: ActivityStatus;
+  kind: 'artist' | 'album';
+  title?: string;
+  artistName?: string;
+  lidarrUrl?: string;
+  error?: string;
+  startedAt: number;
+  endedAt?: number;
+};
+
+export const ActivityKey = 'currentActivity';
+
+export async function getActivity(): Promise<Activity | null> {
+  const got = await chrome.storage.local.get(ActivityKey);
+  return (got[ActivityKey] ?? null) as Activity | null;
+}
+
+export async function setActivity(a: Activity | null): Promise<void> {
+  if (a === null) {
+    await chrome.storage.local.remove(ActivityKey);
+  } else {
+    await chrome.storage.local.set({ [ActivityKey]: a });
+  }
+}
+
 export type RecentAdd = {
   kind: 'artist' | 'album';
   title: string;
