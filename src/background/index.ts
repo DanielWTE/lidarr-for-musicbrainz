@@ -14,8 +14,10 @@ import {
   lookupAlbum,
   lookupArtist,
 } from '@/lib/lidarr';
-import { resolveReleaseToReleaseGroup } from '@/lib/musicbrainz';
+import { detectPage, resolveReleaseToReleaseGroup } from '@/lib/musicbrainz';
 import {
+  type Activity,
+  type ActivityStatus,
   getCache,
   getRecentAdds,
   getSettings,
@@ -23,6 +25,7 @@ import {
   isFullyConfigured,
   ProfilesCacheKey,
   pushRecentAdd,
+  setActivity,
   setCache,
   type Settings,
 } from '@/lib/storage';
@@ -183,7 +186,7 @@ async function addFromMbArtist(
     mbUrl: `https://musicbrainz.org/artist/${created.foreignArtistId}`,
     addedAt: Date.now(),
   });
-  notify('Added to Lidarr', `Artist: ${created.artistName}`);
+  notify('Added to Lidarr', `Artist: ${created.artistName}`, lidarrUrl);
   return {
     ok: true,
     status: 'added',
@@ -237,7 +240,7 @@ async function addFromMbReleaseGroup(
     mbUrl: `https://musicbrainz.org/release-group/${created.foreignAlbumId ?? mbid}`,
     addedAt: Date.now(),
   });
-  notify('Added to Lidarr', `Album: ${created.title}`);
+  notify('Added to Lidarr', `Album: ${created.title}`, lidarrUrl);
   return {
     ok: true,
     status: 'added',
@@ -322,15 +325,199 @@ function toErrorResponse(e: unknown): MsgResponse<never> {
   return { ok: false, error: String(e) };
 }
 
-function notify(title: string, message: string): void {
+// Maps notification id → URL to open when the user clicks it (or its "Open" button).
+// Lives in module scope; survives normal SW idle but is reset on full SW restart.
+// Acceptable because Chrome notifications are short-lived anyway.
+const notificationUrls = new Map<string, string>();
+
+function notify(title: string, message: string, url?: string): void {
   try {
-    chrome.notifications.create({
+    const id = `lfmb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const opts: chrome.notifications.NotificationOptions<true> = {
       type: 'basic',
       iconUrl: chrome.runtime.getURL('public/icon128.png'),
       title,
       message,
-    });
+    };
+    if (url) {
+      opts.buttons = [{ title: 'Open in Lidarr' }];
+      notificationUrls.set(id, url);
+    }
+    chrome.notifications.create(id, opts);
   } catch {
     /* notifications are best-effort */
   }
+}
+
+chrome.notifications.onClicked.addListener((id) => {
+  const url = notificationUrls.get(id);
+  if (url) {
+    void chrome.tabs.create({ url });
+    chrome.notifications.clear(id);
+  }
+  notificationUrls.delete(id);
+});
+
+chrome.notifications.onButtonClicked.addListener((id, btnIdx) => {
+  if (btnIdx !== 0) return;
+  const url = notificationUrls.get(id);
+  if (url) {
+    void chrome.tabs.create({ url });
+    chrome.notifications.clear(id);
+  }
+  notificationUrls.delete(id);
+});
+
+chrome.notifications.onClosed.addListener((id) => {
+  notificationUrls.delete(id);
+});
+
+// ── Right-click context menu ─────────────────────────────────────────────
+// Lets the user add a MB entity from any page (including non-MB pages) by
+// right-clicking a link whose href contains an artist / release-group / release MBID.
+
+const CONTEXT_MENU_ID = 'lfmb-add';
+const CONTEXT_MENU_PATTERNS = [
+  'https://musicbrainz.org/artist/*',
+  'https://musicbrainz.org/release-group/*',
+  'https://musicbrainz.org/release/*',
+];
+
+function registerContextMenu(): void {
+  try {
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create({
+        id: CONTEXT_MENU_ID,
+        title: 'Add to Lidarr',
+        contexts: ['link'],
+        targetUrlPatterns: CONTEXT_MENU_PATTERNS,
+      });
+    });
+  } catch (e) {
+    console.warn('[lfmb] could not register context menu:', e);
+  }
+}
+
+chrome.runtime.onInstalled.addListener(registerContextMenu);
+chrome.runtime.onStartup.addListener(registerContextMenu);
+
+chrome.contextMenus.onClicked.addListener(async (info) => {
+  if (info.menuItemId !== CONTEXT_MENU_ID || !info.linkUrl) return;
+  const detected = detectPage(info.linkUrl);
+  if (!detected) {
+    notify('Lidarr for MusicBrainz', 'No MusicBrainz MBID found in that link.');
+    return;
+  }
+  console.log(`[lfmb] context-menu add kind=${detected.kind} mbid=${detected.mbid}`);
+
+  const activityKind: Activity['kind'] = detected.kind === 'artist' ? 'artist' : 'album';
+  const startedAt = Date.now();
+
+  // Record initial state, set badge, and try to open the popup so the user
+  // gets immediate feedback while the request is in flight.
+  await setActivity({ status: 'adding', kind: activityKind, startedAt });
+  setBadge('adding');
+  try {
+    await chrome.action.openPopup();
+  } catch {
+    /* requires Chrome 127+ and a user gesture; fall back to badge + notification */
+  }
+
+  const res = await handleAddFromMb(detected.kind, detected.mbid);
+  const endedAt = Date.now();
+
+  if (!res.ok) {
+    await setActivity({
+      status: 'error',
+      kind: activityKind,
+      error: res.error,
+      startedAt,
+      endedAt,
+    });
+    setBadge('error');
+    notify('Add to Lidarr — Error', res.error);
+    scheduleBadgeClear(5000);
+    return;
+  }
+
+  if (res.status === 'added') {
+    await setActivity({
+      status: 'added',
+      kind: activityKind,
+      title: res.title,
+      lidarrUrl: res.lidarrUrl,
+      startedAt,
+      endedAt,
+    });
+    setBadge('added');
+    // The success notification was already fired inside handleAddFromMb.
+    scheduleBadgeClear(4000);
+    return;
+  }
+
+  if (res.status === 'exists') {
+    await setActivity({
+      status: 'exists',
+      kind: activityKind,
+      title: res.title,
+      lidarrUrl: res.lidarrUrl,
+      startedAt,
+      endedAt,
+    });
+    setBadge('exists');
+    notify(
+      'Already in Lidarr',
+      res.title ? `Already in your library: ${res.title}` : 'Already in your library.',
+      res.lidarrUrl,
+    );
+    scheduleBadgeClear(4000);
+    return;
+  }
+
+  if (res.status === 'not-in-lidarr-metadata') {
+    await setActivity({
+      status: 'not-in-metadata',
+      kind: activityKind,
+      startedAt,
+      endedAt,
+    });
+    setBadge('not-in-metadata');
+    notify(
+      'Not in Lidarr metadata',
+      "Lidarr's metadata source (Skyhook) doesn't have this MBID yet.",
+    );
+    scheduleBadgeClear(4000);
+  }
+});
+
+// ── Toolbar badge ────────────────────────────────────────────────────────
+
+const BADGE_BY_STATUS: Record<ActivityStatus, { text: string; color: string }> = {
+  adding: { text: '…', color: '#f0ad4e' },
+  added: { text: '✓', color: '#198754' },
+  exists: { text: '✓', color: '#0d6efd' },
+  error: { text: '!', color: '#dc3545' },
+  'not-in-metadata': { text: '?', color: '#6c757d' },
+};
+
+function setBadge(status: ActivityStatus | null): void {
+  if (status === null) {
+    void chrome.action.setBadgeText({ text: '' });
+    return;
+  }
+  const cfg = BADGE_BY_STATUS[status];
+  void chrome.action.setBadgeText({ text: cfg.text });
+  void chrome.action.setBadgeBackgroundColor({ color: cfg.color });
+  if (chrome.action.setBadgeTextColor) {
+    void chrome.action.setBadgeTextColor({ color: '#ffffff' });
+  }
+}
+
+let badgeClearTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleBadgeClear(ms: number): void {
+  if (badgeClearTimer !== null) clearTimeout(badgeClearTimer);
+  badgeClearTimer = setTimeout(() => {
+    setBadge(null);
+    badgeClearTimer = null;
+  }, ms);
 }
