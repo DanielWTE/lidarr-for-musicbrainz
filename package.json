@@ -1,6 +1,6 @@
 {
   "name": "lidarr-for-musicbrainz",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Add artists and albums from MusicBrainz to Lidarr in one click.",
   "license": "MIT",
@@ -30,7 +30,9 @@
     "predev": "node scripts/generate-icons.mjs",
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prezip": "npm run build",
+    "zip": "node scripts/zip.mjs"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0",
