@@ -96,6 +96,89 @@ a:hover { text-decoration: underline; }
 .pill.is-err { background: var(--pill-err-bg); color: var(--pill-err-fg); }
 .pill.is-warn { background: var(--pill-warn-bg); color: var(--pill-warn-fg); }
 
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid transparent;
+  animation: lfmb-banner-in 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.banner:hover { text-decoration: none; }
+.banner__icon {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.banner__icon svg { display: block; }
+.banner__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.banner__title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.banner__sub {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.banner__chevron {
+  flex: 0 0 auto;
+  opacity: 0.6;
+}
+
+.banner--adding {
+  background: linear-gradient(135deg, rgba(240, 173, 78, 0.18), rgba(240, 173, 78, 0.08));
+  border-color: rgba(240, 173, 78, 0.45);
+  color: var(--fg);
+}
+.banner--adding .banner__icon svg { animation: lfmb-spin 0.85s linear infinite; }
+
+.banner--added {
+  background: linear-gradient(135deg, rgba(25, 135, 84, 0.18), rgba(25, 135, 84, 0.08));
+  border-color: rgba(25, 135, 84, 0.5);
+  color: var(--fg);
+}
+.banner--added:hover { background: linear-gradient(135deg, rgba(25, 135, 84, 0.26), rgba(25, 135, 84, 0.12)); }
+
+.banner--exists {
+  background: linear-gradient(135deg, rgba(13, 110, 253, 0.18), rgba(13, 110, 253, 0.08));
+  border-color: rgba(13, 110, 253, 0.5);
+  color: var(--fg);
+}
+.banner--exists:hover { background: linear-gradient(135deg, rgba(13, 110, 253, 0.26), rgba(13, 110, 253, 0.12)); }
+
+.banner--error {
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.18), rgba(220, 53, 69, 0.08));
+  border-color: rgba(220, 53, 69, 0.5);
+  color: var(--fg);
+}
+.banner--not-in-metadata {
+  background: rgba(127, 127, 127, 0.12);
+  border-color: rgba(127, 127, 127, 0.35);
+  color: var(--fg);
+}
+
+@keyframes lfmb-banner-in {
+  from { transform: translateY(-3px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes lfmb-spin {
+  to { transform: rotate(360deg); }
+}
+
 .recent {
   border-top: 1px solid var(--border);
   padding-top: 10px;
