@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=340, initial-scale=1" />
+    <title>Lidarr for MusicBrainz</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <header class="head">
+        <h1>Lidarr for MusicBrainz</h1>
+        <span id="status-pill" class="pill">Checking…</span>
+      </header>
+      <a id="base-url" class="url muted" target="_blank" rel="noopener noreferrer"></a>
+
+      <section class="recent">
+        <div class="recent__head">
+          <h2>Recent additions</h2>
+          <span id="recent-count" class="muted small"></span>
+        </div>
+        <ul id="recent-list" class="recent-list" aria-live="polite"></ul>
+        <p id="recent-empty" class="recent-empty muted small">
+          No additions yet. Open a MusicBrainz artist or release-group page and
+          click <strong>Add to Lidarr</strong>.
+        </p>
+      </section>
+
+      <div class="actions">
+        <button type="button" id="open-options" class="btn btn--secondary">Settings</button>
+      </div>
+
+      <footer class="footer">
+        <span>
+          Built by
+          <a href="https://wgst.at/" target="_blank" rel="noopener noreferrer">Daniel Wagner</a>
+        </span>
+        <span class="footer__sep">·</span>
+        <span class="muted" id="version-tag"></span>
+      </footer>
+    </main>
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

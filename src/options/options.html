@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lidarr for MusicBrainz — Settings</title>
+    <link rel="stylesheet" href="./options.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="page__header">
+        <h1>Lidarr for MusicBrainz</h1>
+        <p class="muted">Connect this extension to your Lidarr instance.</p>
+      </header>
+
+      <form id="settings-form" novalidate>
+        <fieldset class="card">
+          <legend>Lidarr connection</legend>
+
+          <label for="baseUrl">
+            Lidarr base URL
+            <input
+              id="baseUrl"
+              name="baseUrl"
+              type="url"
+              required
+              placeholder="http://10.1.0.108:8686"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <small class="muted">No trailing slash. Example: <code>http://10.1.0.108:8686</code></small>
+          </label>
+
+          <label for="apiKey">
+            API key
+            <input
+              id="apiKey"
+              name="apiKey"
+              type="password"
+              required
+              placeholder="32-char API key from Lidarr → Settings → General → Security"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </label>
+
+          <div class="row">
+            <button type="button" id="test-btn" class="btn btn--secondary">Test connection</button>
+            <span id="test-result" class="status" aria-live="polite"></span>
+          </div>
+        </fieldset>
+
+        <fieldset class="card" id="profiles-card" disabled>
+          <legend>Defaults for new artists / albums</legend>
+
+          <label for="qualityProfileId">
+            Quality profile
+            <select id="qualityProfileId" name="qualityProfileId" required></select>
+          </label>
+
+          <label for="metadataProfileId">
+            Metadata profile
+            <select id="metadataProfileId" name="metadataProfileId" required></select>
+          </label>
+
+          <label for="rootFolderPath">
+            Root folder
+            <select id="rootFolderPath" name="rootFolderPath" required></select>
+          </label>
+
+          <label for="monitor">
+            Monitor new items
+            <select id="monitor" name="monitor">
+              <option value="all">All albums</option>
+              <option value="future">Future albums</option>
+              <option value="missing">Missing albums</option>
+              <option value="existing">Existing albums</option>
+              <option value="latest">Latest album</option>
+              <option value="first">First album</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+
+          <label class="check">
+            <input type="checkbox" id="searchOnAdd" name="searchOnAdd" />
+            Search on add
+            <small class="muted">Triggers Lidarr's search immediately after adding.</small>
+          </label>
+        </fieldset>
+
+        <div class="row row--end">
+          <span id="save-result" class="status" aria-live="polite"></span>
+          <button type="submit" id="save-btn" class="btn btn--primary">Save</button>
+        </div>
+      </form>
+    </main>
+
+    <script type="module" src="./options.ts"></script>
+  </body>
+</html>

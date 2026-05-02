@@ -1,0 +1,43 @@
+{
+  "name": "lidarr-for-musicbrainz",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Add artists and albums from MusicBrainz to Lidarr in one click.",
+  "license": "MIT",
+  "author": {
+    "name": "Daniel Wagner",
+    "url": "https://wgst.at/"
+  },
+  "homepage": "https://wgst.at/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DanielWTE/lidarr-for-musicbrainz.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DanielWTE/lidarr-for-musicbrainz/issues"
+  },
+  "keywords": [
+    "lidarr",
+    "musicbrainz",
+    "chrome-extension",
+    "manifest-v3",
+    "self-hosted",
+    "arr"
+  ],
+  "type": "module",
+  "scripts": {
+    "prebuild": "node scripts/generate-icons.mjs",
+    "predev": "node scripts/generate-icons.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0",
+    "@types/chrome": "^0.0.270",
+    "@types/node": "^25.6.0",
+    "sharp": "^0.33.0",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0"
+  }
+}
