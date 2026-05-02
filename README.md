@@ -12,6 +12,7 @@ A Chrome extension (Manifest V3) that adds a one-click **Add to Lidarr** button 
 - 🕘 The toolbar popup shows your last 10 additions with quick links back to Lidarr.
 - 🔒 Works against any Lidarr URL (LAN IP, Tailscale, reverse proxy). Host permission is requested at runtime, only for the URL you actually configure.
 - 🌓 Light/dark mode follows your system preference.
+- 🖱️ **Right-click any MusicBrainz link** (on any page — Reddit, Discord, blogs, MB discography lists) and pick **Add to Lidarr** without navigating to it first.
 
 ## Install
 
@@ -76,9 +77,29 @@ npm install
 npm run dev        # vite + @crxjs HMR
 npm run build      # production build → dist/
 npm run typecheck  # strict TypeScript check
+npm run zip        # build + zip dist/ as lidarr-for-musicbrainz-v<version>.zip
 ```
 
 The dev build is loadable as unpacked (point Chrome at `dist/`). Hot-reload works for content scripts, the options page, and the popup; reload the extension manually after service-worker changes.
+
+## Release
+
+CI runs typecheck + build on every push to `main` and every PR.
+
+To cut a new release:
+
+```bash
+npm version patch        # or minor / major — bumps package.json + creates a git tag
+git push --follow-tags
+```
+
+The push of a `v*.*.*` tag triggers `.github/workflows/release.yml`, which:
+
+1. Verifies the tag matches `package.json` version.
+2. Runs typecheck + build.
+3. Creates a GitHub Release with auto-generated notes and the ready-to-upload `.zip` attached.
+
+Published releases live at <https://github.com/DanielWTE/lidarr-for-musicbrainz/releases>.
 
 ## Project layout
 
@@ -105,8 +126,6 @@ Logging: the SW emits one concise `[lfmb] …` line per significant event (CHECK
 
 ## Roadmap
 
-- [ ] Right-click context menu on any MusicBrainz link containing an MBID.
-- [ ] Multiple Lidarr instances.
 - [ ] Localization (DE first).
 - [ ] Chrome Web Store listing.
 - [ ] Vitest coverage for `lib/` modules.
