@@ -53,3 +53,26 @@ export type CheckExistsResult = {
   title?: string;
   lidarrUrl?: string;
 };
+
+// ── Bulk-add over chrome.runtime.connect ──────────────────────────────────
+export const BATCH_PORT_NAME = 'lfmb-batch';
+
+export type BatchItem = { kind: 'release-group' | 'release'; mbid: string };
+
+export type BatchItemStatus = 'added' | 'exists' | 'not-in-metadata' | 'error';
+
+export type BatchItemResult = {
+  status: BatchItemStatus;
+  mbid: string;
+  title?: string;
+  lidarrUrl?: string;
+  error?: string;
+};
+
+export type BatchClientMessage =
+  | { type: 'BATCH_START'; items: BatchItem[] };
+
+export type BatchServerMessage =
+  | { type: 'BATCH_PROGRESS'; index: number; total: number; result: BatchItemResult }
+  | { type: 'BATCH_DONE'; total: number }
+  | { type: 'BATCH_ERROR'; error: string };
