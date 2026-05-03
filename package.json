@@ -1,6 +1,6 @@
 {
   "name": "lidarr-for-musicbrainz",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Add artists and albums from MusicBrainz to Lidarr in one click.",
   "license": "MIT",

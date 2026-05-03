@@ -32,7 +32,7 @@ export function detectPage(href: string): MbPage | null {
 // identifies the app and a way to contact the author.
 // https://musicbrainz.org/doc/MusicBrainz_API
 export const MB_USER_AGENT =
-  'LidarrForMusicBrainz/0.2.0 ( https://wgst.at/ )';
+  'LidarrForMusicBrainz/0.3.0 ( https://wgst.at/ )';
 
 export type MbReleaseLookup = {
   id: string;
