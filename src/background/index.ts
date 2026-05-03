@@ -5,6 +5,8 @@ import {
   buildAddArtistPayload,
   findExistingAlbumByMbid,
   findExistingArtist,
+  getAlbumsByArtist,
+  getAllArtists,
   getMetadataProfiles,
   getQualityProfiles,
   getRootFolders,
@@ -14,6 +16,7 @@ import {
   lookupAlbum,
   lookupArtist,
 } from '@/lib/lidarr';
+import type { AlbumRecord, ArtistRecord } from '@/types/lidarr';
 import { detectPage, resolveReleaseToReleaseGroup } from '@/lib/musicbrainz';
 import {
   type Activity,
@@ -31,6 +34,10 @@ import {
 } from '@/lib/storage';
 import type {
   AddFromMbResult,
+  BatchClientMessage,
+  BatchItem,
+  BatchItemResult,
+  BatchServerMessage,
   CheckExistsResult,
   FetchProfilesResult,
   GetRecentAddsResult,
@@ -38,6 +45,7 @@ import type {
   Response as MsgResponse,
   TestConnectionResult,
 } from '@/types/messages';
+import { BATCH_PORT_NAME } from '@/types/messages';
 
 const PROFILES_TTL_MS = 60 * 60 * 1000; // 1h
 
@@ -520,4 +528,145 @@ function scheduleBadgeClear(ms: number): void {
     setBadge(null);
     badgeClearTimer = null;
   }, ms);
+}
+
+// ── Bulk-add port (section "Add all N" buttons in content script) ────────
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== BATCH_PORT_NAME) return;
+  let aborted = false;
+  port.onDisconnect.addListener(() => {
+    aborted = true;
+  });
+  port.onMessage.addListener((msg: BatchClientMessage) => {
+    if (msg.type !== 'BATCH_START') return;
+    void runBatchAdd(port, msg.items, () => aborted);
+  });
+});
+
+async function runBatchAdd(
+  port: chrome.runtime.Port,
+  items: BatchItem[],
+  isAborted: () => boolean,
+): Promise<void> {
+  const send = (m: BatchServerMessage): void => {
+    if (isAborted()) return;
+    try {
+      port.postMessage(m);
+    } catch {
+      /* port closed mid-flight */
+    }
+  };
+
+  const s = await getSettings();
+  if (!hasCredentials(s)) {
+    send({ type: 'BATCH_ERROR', error: 'Set Lidarr URL and API key first.' });
+    return;
+  }
+  if (!isFullyConfigured(s)) {
+    send({
+      type: 'BATCH_ERROR',
+      error: 'Pick a quality profile, metadata profile, and root folder in settings.',
+    });
+    return;
+  }
+
+  console.log(`[lfmb] BATCH_ADD count=${items.length}`);
+
+  let libraryArtists: ArtistRecord[];
+  try {
+    libraryArtists = await getAllArtists(s);
+  } catch (e) {
+    send({ type: 'BATCH_ERROR', error: e instanceof Error ? e.message : String(e) });
+    return;
+  }
+  const albumsByArtistId = new Map<number, AlbumRecord[]>();
+
+  for (let i = 0; i < items.length; i++) {
+    if (isAborted()) return;
+    const item = items[i]!;
+    let result: BatchItemResult;
+    try {
+      result = await processBatchItem(s, item, libraryArtists, albumsByArtistId);
+    } catch (e) {
+      result = {
+        status: 'error',
+        mbid: item.mbid,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+    send({ type: 'BATCH_PROGRESS', index: i, total: items.length, result });
+  }
+  send({ type: 'BATCH_DONE', total: items.length });
+}
+
+async function processBatchItem(
+  s: Settings,
+  item: BatchItem,
+  libraryArtists: ArtistRecord[],
+  albumsByArtistId: Map<number, AlbumRecord[]>,
+): Promise<BatchItemResult> {
+  const rgMbid =
+    item.kind === 'release' ? await resolveReleaseToReleaseGroup(item.mbid) : item.mbid;
+
+  const lookup = await lookupAlbum(s, rgMbid);
+  if (!lookup) {
+    return { status: 'not-in-metadata', mbid: rgMbid };
+  }
+  const artistMbidRaw = lookup.artist?.foreignArtistId;
+  const artistMbid = artistMbidRaw?.toLowerCase();
+
+  const artist = artistMbid
+    ? libraryArtists.find((a) => a.foreignArtistId?.toLowerCase() === artistMbid)
+    : undefined;
+
+  if (artist) {
+    let albums = albumsByArtistId.get(artist.id);
+    if (!albums) {
+      albums = await getAlbumsByArtist(s, artist.id);
+      albumsByArtistId.set(artist.id, albums);
+    }
+    const target = rgMbid.toLowerCase();
+    const existing = albums.find((a) => a.foreignAlbumId?.toLowerCase() === target);
+    if (existing) {
+      return {
+        status: 'exists',
+        mbid: rgMbid,
+        title: existing.title,
+        lidarrUrl: lidarrArtistUrl(s.baseUrl, artist.foreignArtistId),
+      };
+    }
+  }
+
+  const payload = buildAddAlbumPayload(lookup, {
+    qualityProfileId: s.qualityProfileId!,
+    metadataProfileId: s.metadataProfileId!,
+    rootFolderPath: s.rootFolderPath!,
+    searchForNewAlbum: s.searchOnAdd,
+  });
+  const created = await addAlbum(s, payload);
+  const aMbid = created.artist?.foreignArtistId ?? artistMbidRaw;
+  const lidarrUrl = aMbid ? lidarrArtistUrl(s.baseUrl, aMbid) : undefined;
+
+  await safePushRecentAdd({
+    kind: 'album',
+    title: created.title,
+    artistName: created.artist?.artistName ?? lookup.artist?.artistName,
+    mbid: created.foreignAlbumId ?? rgMbid,
+    lidarrUrl,
+    mbUrl: `https://musicbrainz.org/release-group/${created.foreignAlbumId ?? rgMbid}`,
+    addedAt: Date.now(),
+  });
+
+  // Cache the new album so subsequent items in this batch see it.
+  if (artist) {
+    albumsByArtistId.get(artist.id)?.push(created);
+  }
+
+  return {
+    status: 'added',
+    mbid: created.foreignAlbumId ?? rgMbid,
+    title: created.title,
+    lidarrUrl,
+  };
 }
