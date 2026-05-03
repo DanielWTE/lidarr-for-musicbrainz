@@ -13,6 +13,7 @@ A Chrome extension (Manifest V3) that adds a one-click **Add to Lidarr** button 
 - 🔒 Works against any Lidarr URL (LAN IP, Tailscale, reverse proxy). Host permission is requested at runtime, only for the URL you actually configure.
 - 🌓 Light/dark mode follows your system preference.
 - 🖱️ **Right-click any MusicBrainz link** (on any page — Reddit, Discord, blogs, MB discography lists) and pick **Add to Lidarr** without navigating to it first.
+- 📚 **Bulk-add a whole section** (Album, EP, Single, etc.) from an artist's discography with one click. Live progress on the badge: `Adding 4/11…` → `✓ 8 added · 2 in library · 1 missing`.
 
 ## Install
 
