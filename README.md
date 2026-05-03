@@ -2,6 +2,8 @@
 
 A Chrome extension (Manifest V3) that adds a one-click **Add to Lidarr** button to artist, release-group, and release pages on [musicbrainz.org](https://musicbrainz.org). It connects to your self-hosted [Lidarr](https://lidarr.audio) instance and uses Lidarr's standard `lidarr:<mbid>` lookup so the metadata always lines up.
 
+**[➜ Install from the Chrome Web Store](https://chromewebstore.google.com/detail/lidarr-for-musicbrainz/peijklfbgalgmcipcjfajpdondcpmnim)**
+
 ## Features
 
 - 🎤 Add **artists** in one click from `/artist/<mbid>` pages.
@@ -17,7 +19,19 @@ A Chrome extension (Manifest V3) that adds a one-click **Add to Lidarr** button 
 
 ## Install
 
-### From source (until the Web Store listing is live)
+### Chrome Web Store (recommended)
+
+**[➜ Install from the Chrome Web Store](https://chromewebstore.google.com/detail/lidarr-for-musicbrainz/peijklfbgalgmcipcjfajpdondcpmnim)** — one click, auto-updates.
+
+Works in any Chromium-based browser that uses the Web Store: Chrome, Edge, Brave, Vivaldi, Arc, Opera.
+
+### From a release zip (unpacked)
+
+1. Download the latest `lidarr-for-musicbrainz-v*.zip` from the [Releases page](https://github.com/DanielWTE/lidarr-for-musicbrainz/releases).
+2. Unzip it somewhere stable.
+3. Open `chrome://extensions`, enable **Developer mode** (top-right), click **Load unpacked**, and select the unzipped folder.
+
+### From source
 
 ```bash
 git clone https://github.com/DanielWTE/lidarr-for-musicbrainz.git
@@ -26,14 +40,7 @@ npm install
 npm run build
 ```
 
-Then in Chrome (or Edge / Brave / Vivaldi):
-
-1. Open `chrome://extensions`.
-2. Enable **Developer mode** (top-right toggle).
-3. Click **Load unpacked**.
-4. Select the `dist/` directory inside the cloned repo.
-
-The extension icon appears in your toolbar.
+Then `chrome://extensions` → **Developer mode** → **Load unpacked** → select `dist/`.
 
 ## Configure
 

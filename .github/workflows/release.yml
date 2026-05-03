@@ -64,7 +64,7 @@ jobs:
           body: |
             ### Install
 
-            **Chrome Web Store** — _coming soon_
+            **[➜ Chrome Web Store](https://chromewebstore.google.com/detail/lidarr-for-musicbrainz/peijklfbgalgmcipcjfajpdondcpmnim)** — recommended, auto-updates.
 
             **From this release (unpacked):**
 
