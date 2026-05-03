@@ -1,7 +1,15 @@
 import { sendAddFromMb, sendCheckExists, sendOpenOptions } from '@/lib/messaging';
-import { detectPage, type MbPage } from '@/lib/musicbrainz';
+import { detectPage, MBID_RE, type MbPage } from '@/lib/musicbrainz';
 import { getSettings, hasCredentials, onSettingsChanged } from '@/lib/storage';
-import type { AddFromMbResult, Response as MsgResponse } from '@/types/messages';
+import {
+  type AddFromMbResult,
+  BATCH_PORT_NAME,
+  type BatchClientMessage,
+  type BatchItem,
+  type BatchItemStatus,
+  type BatchServerMessage,
+  type Response as MsgResponse,
+} from '@/types/messages';
 
 const BTN_ID = 'lfmb-button';
 const TITLE_SELECTORS = [
@@ -323,20 +331,122 @@ function tryRender(): void {
   const page = detectPage(location.href);
   if (!page) {
     clearExistingButton();
+    clearSectionButtons();
     return;
   }
   if (findTitleElement()) {
     renderButton(page);
+    if (page.kind === 'artist') void renderSectionButtons();
     return;
   }
   const observer = new MutationObserver(() => {
     if (findTitleElement()) {
       observer.disconnect();
       renderButton(page);
+      if (page.kind === 'artist') void renderSectionButtons();
     }
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   setTimeout(() => observer.disconnect(), 5000);
+}
+
+// ── Bulk-add: section "+ Add all N" badges ────────────────────────────────
+
+const SECTION_BTN_CLASS = 'lfmb-section-btn';
+const RG_HREF_RE =
+  /^\/release-group\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+
+function clearSectionButtons(): void {
+  document.querySelectorAll(`.${SECTION_BTN_CLASS}`).forEach((b) => b.remove());
+}
+
+function findDiscographySections(): { heading: HTMLElement; mbids: string[] }[] {
+  const headings = document.querySelectorAll<HTMLElement>('h2, h3, h4');
+  const sections: { heading: HTMLElement; mbids: string[] }[] = [];
+  headings.forEach((heading) => {
+    // Walk forward until we hit a TABLE or another heading.
+    let cursor: Element | null = heading.nextElementSibling;
+    while (cursor && cursor.tagName !== 'TABLE') {
+      if (/^H[1-6]$/.test(cursor.tagName)) {
+        cursor = null;
+        break;
+      }
+      cursor = cursor.nextElementSibling;
+    }
+    if (!cursor) return;
+    const links = cursor.querySelectorAll<HTMLAnchorElement>('a[href*="/release-group/"]');
+    const mbids: string[] = [];
+    links.forEach((a) => {
+      const href = a.getAttribute('href') ?? '';
+      const m = href.match(RG_HREF_RE);
+      if (!m) return;
+      const mbid = m[1]!.toLowerCase();
+      if (MBID_RE.test(mbid) && !mbids.includes(mbid)) mbids.push(mbid);
+    });
+    if (mbids.length > 0) sections.push({ heading, mbids });
+  });
+  return sections;
+}
+
+async function renderSectionButtons(): Promise<void> {
+  const settings = await getSettings();
+  if (!hasCredentials(settings)) return; // bail when extension isn't configured
+
+  const sections = findDiscographySections();
+  for (const { heading, mbids } of sections) {
+    if (heading.querySelector(`.${SECTION_BTN_CLASS}`)) continue;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `${SECTION_BTN_CLASS} ${SECTION_BTN_CLASS}--idle`;
+    btn.textContent = `+ Add all ${mbids.length}`;
+    btn.title = `Add all ${mbids.length} release-groups in this section to Lidarr`;
+    btn.addEventListener('click', () => runSectionBatch(btn, mbids));
+    heading.appendChild(btn);
+  }
+}
+
+function runSectionBatch(btn: HTMLButtonElement, mbids: string[]): void {
+  btn.disabled = true;
+  btn.className = `${SECTION_BTN_CLASS} ${SECTION_BTN_CLASS}--running`;
+  btn.textContent = `Adding 0/${mbids.length}…`;
+
+  const counts: Record<BatchItemStatus, number> = {
+    added: 0,
+    exists: 0,
+    'not-in-metadata': 0,
+    error: 0,
+  };
+
+  const port = chrome.runtime.connect({ name: BATCH_PORT_NAME });
+  port.onMessage.addListener((msg: BatchServerMessage) => {
+    if (msg.type === 'BATCH_PROGRESS') {
+      counts[msg.result.status] = (counts[msg.result.status] ?? 0) + 1;
+      btn.textContent = `Adding ${msg.index + 1}/${msg.total}…`;
+    } else if (msg.type === 'BATCH_DONE') {
+      const parts: string[] = [];
+      if (counts.added > 0) parts.push(`${counts.added} added`);
+      if (counts.exists > 0) parts.push(`${counts.exists} in library`);
+      if (counts['not-in-metadata'] > 0) parts.push(`${counts['not-in-metadata']} missing`);
+      if (counts.error > 0) parts.push(`${counts.error} error`);
+      btn.textContent = `✓ ${parts.join(' · ')}`;
+      btn.className =
+        counts.error > 0
+          ? `${SECTION_BTN_CLASS} ${SECTION_BTN_CLASS}--partial`
+          : `${SECTION_BTN_CLASS} ${SECTION_BTN_CLASS}--done`;
+      btn.disabled = false;
+      port.disconnect();
+    } else if (msg.type === 'BATCH_ERROR') {
+      btn.textContent = `Error: ${msg.error}`;
+      btn.className = `${SECTION_BTN_CLASS} ${SECTION_BTN_CLASS}--error`;
+      btn.title = msg.error;
+      btn.disabled = false;
+      port.disconnect();
+    }
+  });
+
+  const items: BatchItem[] = mbids.map((mbid) => ({ kind: 'release-group', mbid }));
+  const start: BatchClientMessage = { type: 'BATCH_START', items };
+  port.postMessage(start);
 }
 
 tryRender();
@@ -357,5 +467,6 @@ window.addEventListener('popstate', tryRender);
 
 onSettingsChanged(() => {
   clearExistingButton();
+  clearSectionButtons();
   tryRender();
 });
