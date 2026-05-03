@@ -216,6 +216,86 @@
   color: #ffffff !important;
 }
 
+/* ── Section bulk-add badges (artist discography) ─────────────────────── */
+
+.lfmb-section-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.lfmb-section-btn:disabled { cursor: progress; }
+.lfmb-section-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.lfmb-section-btn--idle {
+  background: rgba(30, 157, 140, 0.12) !important;
+  color: #14796b !important;
+  border-color: rgba(30, 157, 140, 0.45);
+}
+.lfmb-section-btn--idle:hover {
+  background: linear-gradient(135deg, #1e9d8c 0%, #16b39c 100%) !important;
+  color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.lfmb-section-btn--running {
+  background: linear-gradient(135deg, #f0ad4e 0%, #f5b969 100%) !important;
+  color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.1);
+  animation: lfmb-section-pulse 1.4s ease-in-out infinite;
+}
+@keyframes lfmb-section-pulse {
+  50% { filter: brightness(1.08); }
+}
+
+.lfmb-section-btn--done {
+  background: linear-gradient(135deg, rgba(25, 135, 84, 0.18), rgba(25, 135, 84, 0.08)) !important;
+  color: #146c43 !important;
+  border-color: rgba(25, 135, 84, 0.5);
+}
+.lfmb-section-btn--partial {
+  background: linear-gradient(135deg, rgba(240, 173, 78, 0.22), rgba(240, 173, 78, 0.08)) !important;
+  color: #7c5a00 !important;
+  border-color: rgba(240, 173, 78, 0.55);
+}
+.lfmb-section-btn--error {
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.18), rgba(220, 53, 69, 0.08)) !important;
+  color: #b02a37 !important;
+  border-color: rgba(220, 53, 69, 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  .lfmb-section-btn--idle {
+    color: #2ed3bd !important;
+    background: rgba(30, 157, 140, 0.18) !important;
+  }
+  .lfmb-section-btn--done { color: #56d364 !important; }
+  .lfmb-section-btn--partial { color: #e3b341 !important; }
+  .lfmb-section-btn--error { color: #ff7b72 !important; }
+}
+
 /* Respect reduced-motion preferences. */
 @media (prefers-reduced-motion: reduce) {
   .lfmb-btn,
